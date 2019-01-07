@@ -1,0 +1,16 @@
+version: '3.5'
+
+services:
+
+  web:
+    build: ./webapp
+    image: webapp
+    container_name: webapp
+    ports:
+      - "0.0.0.0:5000:80"
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:5.0.3-alpine3.8
+    container_name: redis

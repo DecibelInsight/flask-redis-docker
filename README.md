@@ -2,20 +2,20 @@ flask-redis-docker
 ==================
 
 An example about how to deploy a Flask application inside a Docker able to perform
-asynchronous requests.
+asynchronous, parallel requests, with the Flask application handled by NGINX/uWSGI.
 
 How it works
 ------------
 
 Though Python allows asynchronous executions through several techniques, forking
-asynchronous process from a main process in Docker is not trivial (see 
-https://docs.docker.com/config/containers/multi-service_container/). The only
-way is to define a `worker` process within the main processes of the container
+asynchronous processes from the uWSGI plugin is not allowed (at least by default),
+and not recommended (see https://docs.docker.com/config/containers/multi-service_container/).
+A good solution is to define a `worker` process within the main processes of the container
 (i.e. handled through `supervisor`, used as main process defined in the container's
 `CMD`), that is able to perform operations in background.
 
-Here, `Python Redis Queue` is used to define an asynchronous queue of required tasks
-based on a `Redis` service, running on a separated (light) container.
+The repo has two sections, one dedicated to Python 2.7 (based on `RedisQueue`) and
+one to Python 3.6 (based on `Celery`). Both examples use `Redis` as broker messages.
 
 How to run it
 -------------
@@ -44,45 +44,22 @@ request asynchronously as follows:
 
 ```
 $ curl -X POST -F "duration=20" http://127.0.0.1:5000/long_task
-{
-  "data": {
-    "task_id": "05aabf85-b34a-4797-8d44-8ad767a3928e"
-  }, 
-  "status": "success"
-}
 ```
 
-And retrieve the result with the following one:
+and for a parallelised task:
 
 ```
-$ curl -X GET http://127.0.0.1:5000/tasks/05aabf85-b34a-4797-8d44-8ad767a3928e
+$ curl -X POST -F "duration=200" http://127.0.0.1:5000/parallel_long_task
 ```
 
-If the task is not concluded in the meantime, this is the response of the request:
+Then the outputs can be retrieved as follows:
 
 ```
-{
-  "data": {
-    "task_id": "05aabf85-b34a-4797-8d44-8ad767a3928e", 
-    "task_result": null, 
-    "task_status": "started"
-  }, 
-  "status": "success"
-}
+$ curl -X GET http://127.0.0.1:5000/task/<task_id>
 ```
 
-Otherwise, this is the response with the output stored in the `task_result` key:
+or, in the case of a parallel task:
 
 ```
-$ curl -X GET http://127.0.0.1:5000/tasks/05aabf85-b34a-4797-8d44-8ad767a3928e
-{
-  "data": {
-    "task_id": "05aabf85-b34a-4797-8d44-8ad767a3928e", 
-    "task_result": {
-      "task": true
-    }, 
-    "task_status": "finished"
-  }, 
-  "status": "success"
-}
+$ curl -X GET http://127.0.0.1:5000/parallel_task/<task_id>
 ```
